@@ -14,7 +14,9 @@ INSERT INTO t_question (category, content, option_a, option_b, option_c, option_
 ('JAVASCRIPT', '哪个方法可以把字符串转换成整数？', 'parseInt()', 'toString()', 'parseFloat()', 'Number.isInteger()', 0),
 ('JAVASCRIPT', '哪个 DOM 方法可以根据 id 获取元素？', 'querySelectorAll()', 'getElementById()', 'getElementsByClassName()', 'createElement()', 1);
 
--- 两个演示账号，密码都是 123456（SHA-256 单轮摘要，仅用于演示）
+-- 两个演示账号，密码都是 123456（PBKDF2-HMAC-SHA256，12 万轮，随机盐）
+-- 注意：同一个密码，两行的摘要也长得不一样——这就是加盐的意义。
 INSERT INTO t_user (username, password_hash, email) VALUES
-('admin',  '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'admin@example.com'),
-('lingrui', '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92', 'lingrui@example.com');
+('admin',  'pbkdf2$120000$7KcBJ/tCzf6JMuR6stH92g==$FedM9AUkvvBdD+2tpK8T3oRs7lzUeeWbcT7C7Kaz/Z8=', 'admin@example.com'),
+('lingrui', 'pbkdf2$120000$x1hy3XJKyvMmaBwtpjA6tg==$BMqDwuGmRsim64WQlPDh+JWyOZHANwZiiId4lCSV+1Y=', 'lingrui@example.com');
+

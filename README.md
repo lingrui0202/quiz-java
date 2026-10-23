@@ -75,7 +75,7 @@ java -jar target/quiz-java-1.0.0.jar
 | DELETE | `/api/questions/{id}` | 删除题目 |
 | GET | `/api/users` | 用户列表（不含密码） |
 | GET | `/api/users/{id}` | 用户详情 |
-| POST | `/api/users` | 注册（密码转摘要后入库） |
+| POST | `/api/users` | 注册（明文密码传 `password` 或 `passwordHash`，入库前哈希） |
 | PUT | `/api/users/{id}` | 修改用户（密码留空 = 不改） |
 | DELETE | `/api/users/{id}` | 删除用户 |
 
@@ -98,7 +98,8 @@ java -jar target/quiz-java-1.0.0.jar
 
 - `Question.getOptions()` 是派生字段，标了 `access = READ_ONLY`，只在响应里出现，请求体不用传 `options`；
 - `User.passwordHash` 标了 `WRITE_ONLY`，永远不会被序列化返回；
-- 密码摘要用单轮 SHA-256，**仅作业演示**；真实项目必须 BCrypt/Argon2（带盐 + 可调代价）；
+- 密码摘要用 **PBKDF2-HMAC-SHA256**（随机 16 字节盐、12 万轮、JDK 自带 `SecretKeyFactory`，不引第三方依赖），存储格式 `pbkdf2$120000$salt$hash`；
+- 请求体里 `password` 和 `passwordHash` 两个键都收（后者是历史命名，前端目前用的它），传进来的都是明文，入库前统一哈希；
 - 全局异常处理器让错误也走 `Result` 结构，不返回 Spring 默认错误页。
 
 ---
@@ -153,7 +154,36 @@ java -jar target/quiz-java-1.0.0.jar
 ## 七、已知限制
 
 - 便携版 MySQL 没注册成服务，**开机要手动启一次**（`mysql.bat start`）。
-- 密码摘要用单轮 SHA-256，仅演示；生产必须上 BCrypt/Argon2。
+- 密码摘要用 PBKDF2-HMAC-SHA256（12 万轮 + 随机盐），已经不算"明码"，但迭代参数仍应按机器性能和年限再调；更彻底可以换 Argon2。
+- 校验规则与前端弹窗对齐：用户名 2—32 位、密码 6—32 位、邮箱填空可以、填了要合法。**前端拦一道是体验，后端拦一道才生效**。
 - 没做鉴权（登录态、Token），接口目前任何人可调。
 - 没配 CORS，前端的 Vue dev server 直接调会被浏览器拦。
 
+---
+
+## 七、跟着第五次作业的修改同步（2026-10-23 第二轮）
+
+第五次作业（`web-quiz-admin`）按老师反馈改过一轮，后端这边跟着对齐：
+
+| 第五次改了什么 | 第六次相应调整 |
+|---|---|
+| 密码规则收紧到 6—32 位、用户名 2—32 位、邮箱要校验 | 后端校验和前端完全一致（原来只挡了"非空"和"≥6"） |
+| 强调「密码绝对不能以明码显示」 | 摘要从**单轮 SHA-256** 升级为 **PBKDF2-HMAC-SHA256**（随机盐 + 12 万轮），`password_hash` 字段从 `VARCHAR(64)` 加宽到 `VARCHAR(128)` |
+| 前端错误提示要能看懂 | 后端返回的中文提示与前端一致（"密码最多 32 位"等），前端直接 `$message.error` 展示 |
+| 前端仍然用 `passwordHash` 这个键传明文 | 后端同时接受 `password` 与 `passwordHash`，前端不用改、也不用重新部署 |
+
+**实测（2026-10-23）**：
+
+| 验证项 | 结果 |
+|---|---|
+| 用 `password` 键注册 | ✅ 入库为 `pbkdf2$120000$…`（83 字符） |
+| 用 `passwordHash` 键注册（兼容旧调用） | ✅ |
+| 同一密码注册两个账号，摘要不同（加盐生效） | ✅ 2 条不同摘要 |
+| 用户名 1 位 / 40 位、密码 5 位 / 40 位、邮箱非法 | ✅ 全部 400 + 明确中文提示 |
+| 改用户不传密码 → 摘要不变 | ✅ |
+| 改用户传新密码 → 摘要变化 | ✅ |
+| 前端 CDP 实测（新增用户、二次确认、无明文） | ✅ 通过 |
+
+> 注意：`db/schema.sql` 里 `password_hash` 已改为 `VARCHAR(128)`。如果库是更早建的，要先跑：
+> `ALTER TABLE t_user MODIFY password_hash VARCHAR(128) NOT NULL;`
+> 否则 PBKDF2 串会被截断（83 > 64），密码就废了。

@@ -1,20 +1,24 @@
 package com.lingrui.quiz.service;
 
+import com.lingrui.quiz.common.PasswordHasher;
 import com.lingrui.quiz.entity.User;
 import com.lingrui.quiz.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * 用户业务层。
+ *
+ * 校验规则和前端 web-quiz-admin 的弹窗保持一致：
+ * 用户名 2—32 位、密码 6—32 位、邮箱可为空但填了要合法。
+ * 两边规则一致的意义是：前端拦一道是为了体验，后端拦一道才是真正生效的那道。
  */
 @Service
 public class UserService {
+
+    private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
     private final UserMapper userMapper;
 
@@ -35,16 +39,17 @@ public class UserService {
     }
 
     public User register(User user) {
-        if (user.getUsername() == null || user.getUsername().isBlank()) {
-            throw new IllegalArgumentException("用户名不能为空");
+        String username = normalizeUsername(user.getUsername());
+        String raw = user.getPasswordHash();
+        checkPassword(raw);
+
+        if (userMapper.findByUsername(username) != null) {
+            throw new IllegalArgumentException("用户名已存在：" + username);
         }
-        if (user.getPasswordHash() == null || user.getPasswordHash().length() < 6) {
-            throw new IllegalArgumentException("密码至少 6 位");
-        }
-        if (userMapper.findByUsername(user.getUsername()) != null) {
-            throw new IllegalArgumentException("用户名已存在：" + user.getUsername());
-        }
-        user.setPasswordHash(sha256(user.getPasswordHash()));
+
+        user.setUsername(username);
+        user.setEmail(normalizeEmail(user.getEmail()));
+        user.setPasswordHash(PasswordHasher.hash(raw));
         userMapper.insert(user);
         // 回查一次，把数据库生成的 created_at 也带回去
         return userMapper.findById(user.getId());
@@ -56,26 +61,24 @@ public class UserService {
      */
     public User update(Long id, User user) {
         User old = get(id);
+        String username = normalizeUsername(user.getUsername());
 
-        if (user.getUsername() == null || user.getUsername().isBlank()) {
-            throw new IllegalArgumentException("用户名不能为空");
-        }
-        User sameName = userMapper.findByUsername(user.getUsername());
+        User sameName = userMapper.findByUsername(username);
         if (sameName != null && !sameName.getId().equals(id)) {
-            throw new IllegalArgumentException("用户名已存在：" + user.getUsername());
+            throw new IllegalArgumentException("用户名已存在：" + username);
         }
 
-        String rawPassword = user.getPasswordHash();
-        if (rawPassword == null || rawPassword.isBlank()) {
+        String raw = user.getPasswordHash();
+        if (raw == null || raw.isBlank()) {
             user.setPasswordHash(old.getPasswordHash());
         } else {
-            if (rawPassword.length() < 6) {
-                throw new IllegalArgumentException("密码至少 6 位");
-            }
-            user.setPasswordHash(sha256(rawPassword));
+            checkPassword(raw);
+            user.setPasswordHash(PasswordHasher.hash(raw));
         }
 
         user.setId(id);
+        user.setUsername(username);
+        user.setEmail(normalizeEmail(user.getEmail()));
         userMapper.update(user);
         return userMapper.findById(id);
     }
@@ -90,16 +93,34 @@ public class UserService {
         return userMapper.count();
     }
 
-    /**
-     * 演示用的摘要：单轮 SHA-256。
-     * 作业里够用，真实项目必须换成 BCrypt / Argon2 这类带盐、可调代价的算法。
-     */
-    private String sha256(String raw) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(md.digest(raw.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("JVM 不支持 SHA-256", e);
+    private String normalizeUsername(String username) {
+        if (username == null || username.trim().length() < 2) {
+            throw new IllegalArgumentException("用户名至少 2 位");
         }
+        String name = username.trim();
+        if (name.length() > 32) {
+            throw new IllegalArgumentException("用户名最多 32 位");
+        }
+        return name;
+    }
+
+    private void checkPassword(String raw) {
+        if (raw == null || raw.length() < 6) {
+            throw new IllegalArgumentException("密码至少 6 位");
+        }
+        if (raw.length() > 32) {
+            throw new IllegalArgumentException("密码最多 32 位");
+        }
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        String value = email.trim();
+        if (!EMAIL.matcher(value).matches()) {
+            throw new IllegalArgumentException("邮箱格式不对");
+        }
+        return value;
     }
 }
