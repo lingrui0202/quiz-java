@@ -74,9 +74,14 @@ java -jar target/quiz-java-1.0.0.jar
 | PUT | `/api/questions/{id}` | 修改题目 |
 | DELETE | `/api/questions/{id}` | 删除题目 |
 | GET | `/api/users` | 用户列表（不含密码） |
+| GET | `/api/users/{id}` | 用户详情 |
 | POST | `/api/users` | 注册（密码转摘要后入库） |
+| PUT | `/api/users/{id}` | 修改用户（密码留空 = 不改） |
+| DELETE | `/api/users/{id}` | 删除用户 |
 
-统一返回 `{"code":0,"message":"ok","data":...}`；参数错误返回 400 + `code:1`。
+统一返回 `{"code":0,"message":"ok","data":...}`；参数错误返回 400 + `code:1`，路径不存在返回 404。
+
+`CorsConfig` 对 `/api/**` 放开了 `http://localhost:*` / `http://127.0.0.1:*`，方便前端 dev server 直接调；生产环境应当收窄到真实域名。
 
 ---
 
@@ -100,7 +105,15 @@ java -jar target/quiz-java-1.0.0.jar
 
 ## 五、和前后端联调的关系
 
-第五次课的 `web-quiz-admin` 用的是本地数组假数据，README 里写了「等以后做前后端联调再换成接口」。这个仓库就是那个"以后"——把 `QuestionView.vue` / `UserView.vue` 的数据源从数组换成 `axios.get('/api/questions')` 即可接上。前端 Vue dev server 在 8080、后端在 8081，跨域需要给后端加 `@CrossOrigin` 或 Vite/vue-cli 的 proxy（下一步再做）。
+第五次课的 `web-quiz-admin` 原来用的是本地数组假数据，README 里写着「等以后做前后端联调再换成接口」。**2026-10-23 已经接上了**：
+
+- 前端新增 `src/api/`（axios 实例 + 题目/用户接口 + 字段转换），`QuestionView.vue` / `UserView.vue` 改成 `created()` 时拉数据，增删改全部走接口；
+- 跨域两条路都通了：`vue.config.js` 的 `devServer.proxy` 把 `/api` 转发到 8081；本仓库的 `CorsConfig` 也开了 CORS；
+- 为了配合前端已有的"编辑/删除用户"按钮，这次补了 `PUT /api/users/{id}` 和 `DELETE /api/users/{id}`——改用户时密码留空表示不改，填了才重新算摘要。
+
+**链路验收**（实测）：`8080 → /api 代理 → 8081 → MySQL`，新增一道题后前端分页总数从 8 变 9，删掉又回到 8。
+
+线上部署的那份静态站仍然是"本地数组"版：Vercel 上没有后端，直接换成接口版会 404。等后端上了公网再切。
 
 ---
 
