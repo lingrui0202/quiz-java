@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.lingrui.quiz.mapper.QuestionMapper">
+
+    <!-- 数据库列名是下划线，Java 字段是驼峰：靠这个 resultMap 对应 -->
+    <resultMap id="QuestionMap" type="com.lingrui.quiz.entity.Question">
+        <id property="id" column="id"/>
+        <result property="category" column="category"/>
+        <result property="content" column="content"/>
+        <result property="optionA" column="option_a"/>
+        <result property="optionB" column="option_b"/>
+        <result property="optionC" column="option_c"/>
+        <result property="optionD" column="option_d"/>
+        <result property="answer" column="answer"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <sql id="columns">
+        id, category, content, option_a, option_b, option_c, option_d, answer, created_at
+    </sql>
+
+    <!-- 动态 SQL：两个条件都可选，用 <where> 自动处理 AND 前缀 -->
+    <select id="findAll" resultMap="QuestionMap">
+        SELECT <include refid="columns"/>
+        FROM t_question
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (content LIKE CONCAT('%', #{keyword}, '%')
+                     OR category LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+        </where>
+        ORDER BY id
+    </select>
+
+    <select id="findById" resultMap="QuestionMap">
+        SELECT <include refid="columns"/> FROM t_question WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO t_question (category, content, option_a, option_b, option_c, option_d, answer)
+        VALUES (#{category}, #{content}, #{optionA}, #{optionB}, #{optionC}, #{optionD}, #{answer})
+    </insert>
+
+    <update id="update">
+        UPDATE t_question
+        SET category = #{category},
+            content  = #{content},
+            option_a = #{optionA},
+            option_b = #{optionB},
+            option_c = #{optionC},
+            option_d = #{optionD},
+            answer   = #{answer}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM t_question WHERE id = #{id}
+    </delete>
+
+    <select id="countByCategory" resultType="java.util.Map">
+        SELECT category AS category, COUNT(*) AS total
+        FROM t_question
+        GROUP BY category
+        ORDER BY total DESC
+    </select>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM t_question
+    </select>
+
+</mapper>

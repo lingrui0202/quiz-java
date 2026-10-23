@@ -1,0 +1,9 @@
+{
+  "category": "VUE",
+  "content": "Vue 中哪个指令实现双向绑定？（已修改）",
+  "optionA": "v-bind",
+  "optionB": "v-model",
+  "optionC": "v-for",
+  "optionD": "v-if",
+  "answer": 1
+}
