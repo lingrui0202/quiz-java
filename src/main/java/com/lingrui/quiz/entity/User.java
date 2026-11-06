@@ -33,5 +33,8 @@ public class User {
 
     private String email;
 
+    /** 逻辑删除标记：0 正常，1 已删除。查询时已经被 is_delete = 0 过滤掉，正常看不到 1。 */
+    private Integer isDelete;
+
     private LocalDateTime createdAt;
 }

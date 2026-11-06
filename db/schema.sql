@@ -29,10 +29,12 @@ CREATE TABLE t_user (
     id            BIGINT      NOT NULL AUTO_INCREMENT COMMENT '主键',
     username      VARCHAR(32) NOT NULL COMMENT '用户名',
     password_hash VARCHAR(128) NOT NULL COMMENT '密码摘要：pbkdf2$迭代$salt$hash（PBKDF2-HMAC-SHA256）',
-    email         VARCHAR(64) DEFAULT NULL,
-    created_at    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    email         VARCHAR(64)  DEFAULT NULL,
+    is_delete     TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除：0 正常，1 已删除',
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_username (username)
+    KEY idx_username (username),
+    KEY idx_delete_username (is_delete, username)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
-  COMMENT = '用户表';
+  COMMENT = '用户表：删除走逻辑删除，is_delete=1 表示已删除';
