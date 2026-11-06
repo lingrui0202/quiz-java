@@ -21,8 +21,9 @@ import java.util.Map;
  * 题目接口。这是"跑通 controller"那一环：
  * 浏览器 / 前端 → Controller → Service → Mapper → MySQL。
  *
- * 第八周补上的四个能力，和用户那边的写法一一对应：
- * 分页（/page）、关键词查询（/search）、逻辑删除（GET /delete 与 DELETE /{id}）。
+ * 管理端与用户端分开：
+ * - 管理端：分页、关键词、增删改（/page、/search、/delete、POST、PUT、DELETE）
+ * - 用户端：答题取题（/quiz），乱序、不分页、只给未删除的题
  */
 @RestController
 @RequestMapping("/api/questions")
@@ -54,6 +55,17 @@ public class QuestionController {
     @GetMapping("/search")
     public Result<List<Question>> search(@RequestParam(required = false) String keyword) {
         return Result.ok(questionService.search(keyword));
+    }
+
+    /**
+     * 用户端获取题目（答题用）。
+     * GET /api/questions/quiz?limit=5&category=JAVASCRIPT
+     * 和管理端的区别：不分页、乱序、一次给答题需要的字段。
+     */
+    @GetMapping("/quiz")
+    public Result<List<QuizItem>> quiz(@RequestParam(defaultValue = "5") int limit,
+                                       @RequestParam(required = false) String category) {
+        return Result.ok(questionService.quiz(limit, category).stream().map(QuizItem::of).toList());
     }
 
     /** 逻辑删除的 GET 写法，和课堂一致：GET /api/questions/delete?id=3 */
@@ -88,5 +100,27 @@ public class QuestionController {
     public Result<Void> delete(@PathVariable Long id) {
         questionService.deleteById(id);
         return Result.ok();
+    }
+
+    /**
+     * 用户端答题用的题目形状，和答题页面一一对应：
+     *   { id, question: "题干", answers: [{ text: "选项文字", correct: true/false }, ...] }
+     * 每个选项自带对错标记，前端直接据此判分，不用再拿下标去比。
+     */
+    public record QuizItem(Long id, String question, List<AnswerItem> answers) {
+
+        public static QuizItem of(Question q) {
+            int correct = q.getAnswer() == null ? -1 : q.getAnswer();
+            List<AnswerItem> answers = List.of(
+                    new AnswerItem(q.getOptionA(), correct == 0),
+                    new AnswerItem(q.getOptionB(), correct == 1),
+                    new AnswerItem(q.getOptionC(), correct == 2),
+                    new AnswerItem(q.getOptionD(), correct == 3));
+            return new QuizItem(q.getId(), q.getContent(), answers);
+        }
+    }
+
+    /** 单个选项：文字 + 是不是正确答案 */
+    public record AnswerItem(String text, boolean correct) {
     }
 }

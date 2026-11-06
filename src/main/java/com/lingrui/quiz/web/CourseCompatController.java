@@ -1,6 +1,7 @@
 package com.lingrui.quiz.web;
 
 import com.lingrui.quiz.common.PageBean;
+import com.lingrui.quiz.controller.QuestionController;
 import com.lingrui.quiz.common.Result;
 import com.lingrui.quiz.entity.Question;
 import com.lingrui.quiz.entity.User;
@@ -122,6 +123,18 @@ public class CourseCompatController {
         q.setOptionD(form.optionD());
         q.setAnswer(form.answerIndex());
         return Result.ok(QsBean.of(questionService.create(q)));
+    }
+
+    /**
+     * 用户端获取题目（9-9）。课堂接口名是 /getQuestion，默认返回 5 条随机题，
+     * 每条带 answers[{text, correct}]，答题页面据此直接判分。
+     */
+    @GetMapping("/getQuestion")
+    public Result<List<QuestionController.QuizItem>> getQuestion(
+            @RequestParam(defaultValue = "5") int limit,
+            @RequestParam(required = false) String category) {
+        return Result.ok(questionService.quiz(limit, category).stream()
+                .map(QuestionController.QuizItem::of).toList());
     }
 
     /** 删除题目（逻辑删除）：笔记里是 GET /delQuestion?id= */

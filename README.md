@@ -288,7 +288,7 @@ ALTER TABLE t_user ADD KEY idx_username (username);
 | 视频 | 内容 | 实现 |
 |---|---|---|
 | 9-8 | 插入新题目 | `POST /api/questions`（`/addQuestion` 兼容版接受 `answer` 为字母/下标/选项文字） |
-| 9-9 | 删除题目 | 逻辑删除，`GET /api/questions/delete?id=` 与 `DELETE /{id}` |
+| 9-9 | 删除题目 + 用户端获取题目 | 逻辑删除 `GET /api/questions/delete?id=`；用户端 `GET /api/questions/quiz`（默认 5 条随机题） |
 | 9-10 | 分页 + 关键词查询 | `PageBean{total,list}` + `LIMIT`，`/api/questions/page`、`/api/questions/search` |
 | 10-1 / 10-2 | 管理端页面联调 | 前端改成服务端分页（见下） |
 
@@ -302,8 +302,11 @@ ALTER TABLE t_user ADD KEY idx_username (username);
 | `GET /findQuestion?keyword=` | `GET /api/questions/search` | `data = [...]` |
 | `POST /addQuestion` | `POST /api/questions` | 入参 `questionText/optionA~D/answer` |
 | `GET /delQuestion?id=` | `GET /api/questions/delete?id=` | 逻辑删除 |
+| `GET /getQuestion` | `GET /api/questions/quiz` | 用户端取题：默认 5 条随机题 |
 
 `qsBeanList` 里的 `answer` 给的是**正确选项的文字**（课堂 9-10 就是这么转的），不是下标；`/addQuestion` 则三种写法都认（`"B"`、`1`、选项原文）。
+
+用户端取题的形状按 9-9 做成 `{ id, question, answers: [{ text, correct }] }`——每个选项自带对错标记，答题页直接据此判分；默认 5 条，`ORDER BY RAND()` 随机，只在 `is_delete = 0` 里取。
 
 ### 前端：题目页改成服务端分页
 

@@ -5,6 +5,8 @@ import com.lingrui.quiz.entity.Question;
 import com.lingrui.quiz.mapper.QuestionMapper;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -98,6 +100,21 @@ public class QuestionService {
             return questionMapper.findAll(null, null);
         }
         return questionMapper.findAll(keyword.trim(), null);
+    }
+
+    /**
+     * 用户端取题（答题用）：只在未删除的题目里拿，打乱顺序。
+     *
+     * limit <= 0 表示全给；category 可用来按分类出题。
+     * 打乱放在服务端做，前端拿到的题每次顺序都不一样，不用自己再洗牌。
+     */
+    public List<Question> quiz(int limit, String category) {
+        List<Question> pool = new ArrayList<>(questionMapper.findAll(null, category));
+        Collections.shuffle(pool);
+        if (limit > 0 && pool.size() > limit) {
+            return pool.subList(0, limit);
+        }
+        return pool;
     }
 
     private void validate(Question q) {
