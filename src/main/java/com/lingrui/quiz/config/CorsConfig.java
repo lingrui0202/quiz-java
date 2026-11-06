@@ -29,7 +29,8 @@ public class CorsConfig implements WebMvcConfigurer {
 
         // 课堂示例兼容接口只有几个固定路径，逐个放行比用 /** 安全，
         // 不会顺手把静态资源之类也放开。
-        for (String path : new String[]{"/users", "/findUser", "/register", "/deleteById"}) {
+        for (String path : new String[]{"/users", "/findUser", "/register", "/deleteById",
+                                  "/questions", "/findQuestion", "/addQuestion", "/delQuestion"}) {
             registry.addMapping(path)
                     .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*")
                     .allowedMethods("GET", "POST", "OPTIONS")

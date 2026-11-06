@@ -17,9 +17,11 @@ CREATE TABLE t_question (
     option_c   VARCHAR(255) NOT NULL,
     option_d   VARCHAR(255) NOT NULL,
     answer     TINYINT      NOT NULL COMMENT '正确选项下标 0-3',
+    is_delete  TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除：0 正常，1 已删除',
     created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    KEY idx_category (category)
+    KEY idx_category (category),
+    KEY idx_delete_content (is_delete, content)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COMMENT = '题目表：题库沿用第二次课 quiz-game 的前端题库';

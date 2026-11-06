@@ -32,6 +32,9 @@ public class Question {
     /** 正确选项下标：0=A, 1=B, 2=C, 3=D */
     private Integer answer;
 
+    /** 逻辑删除标记：0 正常，1 已删除。查询时已过滤，正常看不到 1。 */
+    private Integer isDelete;
+
     private LocalDateTime createdAt;
 
     /**

@@ -276,3 +276,55 @@ ALTER TABLE t_user ADD KEY idx_username (username);
 脚本在 `db/migrate-20261030.sql`，新库直接跑 `schema.sql` 就带这些。
 
 > **本轮改动没有推送到 GitHub**（按用户要求）。
+
+---
+
+## 十、第八周迭代（2026-11-06，对应视频 9-8 ~ 10-2）
+
+课件要求：继续完成 Java 后端的题目页，与管理台前后端联调——插入新题目、删除题目、分页查询、关键词查询。**"无作业需要提交"**，按内容全做了。
+
+### 后端：题目模块补齐（照着用户模块的模板）
+
+| 视频 | 内容 | 实现 |
+|---|---|---|
+| 9-8 | 插入新题目 | `POST /api/questions`（`/addQuestion` 兼容版接受 `answer` 为字母/下标/选项文字） |
+| 9-9 | 删除题目 | 逻辑删除，`GET /api/questions/delete?id=` 与 `DELETE /{id}` |
+| 9-10 | 分页 + 关键词查询 | `PageBean{total,list}` + `LIMIT`，`/api/questions/page`、`/api/questions/search` |
+| 10-1 / 10-2 | 管理端页面联调 | 前端改成服务端分页（见下） |
+
+数据库：`t_question` 增加 `is_delete`，六处查询全部带 `is_delete = 0` 过滤；迁移脚本 `db/migrate-20261106.sql`。
+
+### 兼容层同步补了题目四个接口
+
+| 课堂路径 | 等价的本项目接口 | 返回形状 |
+|---|---|---|
+| `GET /questions?page=&pageSize=` | `GET /api/questions/page` | `data = {total, qsBeanList}` |
+| `GET /findQuestion?keyword=` | `GET /api/questions/search` | `data = [...]` |
+| `POST /addQuestion` | `POST /api/questions` | 入参 `questionText/optionA~D/answer` |
+| `GET /delQuestion?id=` | `GET /api/questions/delete?id=` | 逻辑删除 |
+
+`qsBeanList` 里的 `answer` 给的是**正确选项的文字**（课堂 9-10 就是这么转的），不是下标；`/addQuestion` 则三种写法都认（`"B"`、`1`、选项原文）。
+
+### 前端：题目页改成服务端分页
+
+- `QuestionView.vue` 不再一次性拉全部再前端切片，改成 `currentPage / pageSize / total` + `@current-change`，每次翻页只取当前页。
+- 关键字查询走 `/api/questions/page?keyword=`，**查询时回到第 1 页**；关键词会跟随翻页，不会翻到第二页就丢了条件。
+- 删掉最后一页最后一条时页码会越界，代码里自动回退一页再取。
+- 离线演示模式仍然有效：接口不通时用本地数组模拟分页（`pageQuestions` 的 fallback 分支）。
+
+### 验证（2026-11-06 实测）
+
+**后端（curl）**：`/questions` 第一页 5 条 / 总数 8、第二页 3 条；`/findQuestion?keyword=CSS` 命中 3 条；`/addQuestion` 传 `answer: "B"` → 库里存下标 1、返回 `"Proxy"`；`/delQuestion` 后 `is_delete=1`、总数回到 8。
+
+**前端（Edge CDP 真点，9 项全过）**：
+
+| 验证项 | 结果 |
+|---|---|
+| 第 1 页 5 条、总数显示 8 | ✅ |
+| 点第 2 页 → 3 条 | ✅ |
+| 关键字 CSS → 3 条且回到第 1 页 | ✅ |
+| 清空关键字 → 回到 8 | ✅ |
+| 新增一道题 → 总数 9 | ✅ |
+| 删除该题 → 总数回 8 | ✅ |
+
+> 本轮改动未推送 GitHub。

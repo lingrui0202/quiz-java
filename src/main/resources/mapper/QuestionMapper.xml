@@ -14,18 +14,21 @@
         <result property="optionC" column="option_c"/>
         <result property="optionD" column="option_d"/>
         <result property="answer" column="answer"/>
+        <result property="isDelete" column="is_delete"/>
         <result property="createdAt" column="created_at"/>
     </resultMap>
 
+    <!-- 逻辑删除以后，所有查询都得带上 is_delete = 0，否则"删了还能查到" -->
     <sql id="columns">
-        id, category, content, option_a, option_b, option_c, option_d, answer, created_at
+        id, category, content, option_a, option_b, option_c, option_d, answer, is_delete, created_at
     </sql>
 
-    <!-- 动态 SQL：两个条件都可选，用 <where> 自动处理 AND 前缀 -->
+    <!-- 动态 SQL：关键词 / 分类都可选，用 <where> 自动处理 AND 前缀 -->
     <select id="findAll" resultMap="QuestionMap">
         SELECT <include refid="columns"/>
         FROM t_question
         <where>
+            is_delete = 0
             <if test="keyword != null and keyword != ''">
                 AND (content LIKE CONCAT('%', #{keyword}, '%')
                      OR category LIKE CONCAT('%', #{keyword}, '%'))
@@ -38,7 +41,7 @@
     </select>
 
     <select id="findById" resultMap="QuestionMap">
-        SELECT <include refid="columns"/> FROM t_question WHERE id = #{id}
+        SELECT <include refid="columns"/> FROM t_question WHERE id = #{id} AND is_delete = 0
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -55,22 +58,49 @@
             option_c = #{optionC},
             option_d = #{optionD},
             answer   = #{answer}
-        WHERE id = #{id}
+        WHERE id = #{id} AND is_delete = 0
     </update>
 
-    <delete id="deleteById">
-        DELETE FROM t_question WHERE id = #{id}
-    </delete>
+    <!-- 逻辑删除：标记位，数据留着 -->
+    <update id="logicDeleteById">
+        UPDATE t_question SET is_delete = 1 WHERE id = #{id} AND is_delete = 0
+    </update>
 
     <select id="countByCategory" resultType="java.util.Map">
         SELECT category AS category, COUNT(*) AS total
         FROM t_question
+        WHERE is_delete = 0
         GROUP BY category
         ORDER BY total DESC
     </select>
 
-    <select id="count" resultType="int">
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM t_question WHERE is_delete = 0
+    </select>
+
+    <select id="countByKeyword" resultType="int">
         SELECT COUNT(*) FROM t_question
+        WHERE is_delete = 0
+          AND (content LIKE CONCAT('%', #{keyword}, '%')
+               OR category LIKE CONCAT('%', #{keyword}, '%'))
+    </select>
+
+    <select id="selectPage" resultMap="QuestionMap">
+        SELECT <include refid="columns"/>
+        FROM t_question
+        WHERE is_delete = 0
+        ORDER BY id
+        LIMIT #{start}, #{pageSize}
+    </select>
+
+    <select id="selectPageByKeyword" resultMap="QuestionMap">
+        SELECT <include refid="columns"/>
+        FROM t_question
+        WHERE is_delete = 0
+          AND (content LIKE CONCAT('%', #{keyword}, '%')
+               OR category LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY id
+        LIMIT #{start}, #{pageSize}
     </select>
 
 </mapper>

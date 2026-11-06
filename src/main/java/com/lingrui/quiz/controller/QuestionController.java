@@ -1,5 +1,6 @@
 package com.lingrui.quiz.controller;
 
+import com.lingrui.quiz.common.PageBean;
 import com.lingrui.quiz.common.Result;
 import com.lingrui.quiz.entity.Question;
 import com.lingrui.quiz.service.QuestionService;
@@ -19,6 +20,9 @@ import java.util.Map;
 /**
  * 题目接口。这是"跑通 controller"那一环：
  * 浏览器 / 前端 → Controller → Service → Mapper → MySQL。
+ *
+ * 第八周补上的四个能力，和用户那边的写法一一对应：
+ * 分页（/page）、关键词查询（/search）、逻辑删除（GET /delete 与 DELETE /{id}）。
  */
 @RestController
 @RequestMapping("/api/questions")
@@ -30,11 +34,32 @@ public class QuestionController {
         this.questionService = questionService;
     }
 
-    /** 列表，支持 ?keyword=&category= 过滤 */
+    /** 全部题目（不分页），兼容早先的调用方式 */
     @GetMapping
     public Result<List<Question>> list(@RequestParam(required = false) String keyword,
                                        @RequestParam(required = false) String category) {
         return Result.ok(questionService.list(keyword, category));
+    }
+
+    /** 分页查询：page 从 1 开始，默认 1 / 5；keyword 可选 */
+    @GetMapping("/page")
+    public Result<PageBean<Question>> page(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "5") int pageSize,
+            @RequestParam(required = false) String keyword) {
+        return Result.ok(questionService.page(page, pageSize, keyword));
+    }
+
+    /** 关键词查询，不分页 */
+    @GetMapping("/search")
+    public Result<List<Question>> search(@RequestParam(required = false) String keyword) {
+        return Result.ok(questionService.search(keyword));
+    }
+
+    /** 逻辑删除的 GET 写法，和课堂一致：GET /api/questions/delete?id=3 */
+    @GetMapping("/delete")
+    public Result<String> deleteLogic(@RequestParam Long id) {
+        return Result.ok(questionService.deleteById(id) ? "题目已删除" : "题目不存在或已被删除");
     }
 
     @GetMapping("/{id}")
@@ -58,9 +83,10 @@ public class QuestionController {
         return Result.ok(questionService.update(id, question));
     }
 
+    /** 逻辑删除的 RESTful 写法 */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        questionService.delete(id);
+        questionService.deleteById(id);
         return Result.ok();
     }
 }
